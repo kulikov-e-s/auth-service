@@ -5,6 +5,47 @@ services:
     container_name: postgres
     image: postgres
     volumes:
-      -pg_data:/var/lib/postgres/data
+      - pg_data:/var/lib/postgres/data
+      - ./postgres-setup/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     ports:
       - 5432:5432
+    shm_size: 256M
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pg_user -d auth']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    environment:
+      POSTGRES_USER: pg_user
+      POSTGRES_PASSWORD: password
+      POSTRES_DB: auth
+
+  auth: 
+    container_name: auth-service
+    build:
+      context: ./services
+      dockerfile: ./auth
+    volumes:
+      - ./services/auth:/auth
+      - /auth/node_modules
+    ports:
+      - 3000:3000
+    depends_on:
+      - postgres
+
+  user:
+    container_name: user-service
+    build: 
+      context: ./services
+      dockerfile: ./user
+    volumes:
+      - ./services/user:/user
+      - /user/node_modules
+    ports:
+      - 3001:3001
+    depends_on:
+      - postgres
+
+volumes:
+  pg_data:
